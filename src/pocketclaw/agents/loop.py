@@ -2,6 +2,7 @@
 Unified Agent Loop.
 Created: 2026-02-02
 Part of Nanobot Pattern Adoption.
+Changes: Added BrowserTool registration
 
 This is the core "brain" of PocketPaw. It integrates:
 1. MessageBus (Input/Output)
@@ -34,9 +35,10 @@ from pocketclaw.bus import (
 )
 from pocketclaw.memory import get_memory_manager, MemoryType
 from pocketclaw.tools import ToolRegistry
-from pocketclaw.tools.builtin import ShellTool, ReadFileTool, WriteFileTool, ListDirTool
+from pocketclaw.tools.builtin import ShellTool, ReadFileTool, WriteFileTool, ListDirTool, BrowserTool
 from pocketclaw.tools.builtin.desktop import ScreenshotTool, StatusTool
 from pocketclaw.bootstrap import AgentContextBuilder
+from pocketclaw.agents.open_interpreter import OpenInterpreterAgent
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +60,13 @@ class AgentLoop:
         # LLM Client (Anthropic default for now)
         self.client: AsyncAnthropic | None = None
         
+        # Open Interpreter Agent (Optional)
+        self.oi_agent: OpenInterpreterAgent | None = None
+        
+        # Initialize selected backend
+        if self.settings.agent_backend == "open_interpreter":
+            self.oi_agent = OpenInterpreterAgent(self.settings)
+            
         self._running = False
         
         # Register built-in tools
@@ -71,10 +80,21 @@ class AgentLoop:
         self.tools.register(ListDirTool())
         self.tools.register(ScreenshotTool())
         self.tools.register(StatusTool())
+        self.tools.register(BrowserTool())
         # TODO: Add more tools (WebSearch, etc.) as they are ported
 
     async def start(self) -> None:
         """Start the agent loop."""
+        # Open Interpreter Backend
+        if self.settings.agent_backend == "open_interpreter":
+             if not self.oi_agent:
+                 self.oi_agent = OpenInterpreterAgent(self.settings)
+             self._running = True
+             logger.info("🤖 Agent Loop started (Backend: Open Interpreter)")
+             await self._loop()
+             return
+
+        # Default: Anthropic Backend
         if not AsyncAnthropic:
             logger.error("❌ Anthropic client not available. Install 'anthropic' package.")
             return
@@ -86,7 +106,7 @@ class AgentLoop:
 
         self.client = AsyncAnthropic(api_key=api_key)
         self._running = True
-        logger.info("🤖 Agent Loop started")
+        logger.info("🤖 Agent Loop started (Backend: Anthropic)")
         
         await self._loop()
 
@@ -130,13 +150,17 @@ class AgentLoop:
             # Add current message if not yet in history (it should be, but just in case of race)
             # Actually get_session_history pulls what we just saved.
             
-            # 4. LLM Call (Loop for tool use)
-            await self._llm_step(
-                message=message,
-                system_prompt=system_prompt,
-                messages=history,
-                tools=tool_definitions
-            )
+            # 4. Agent Execution with Backend Selection
+            if self.settings.agent_backend == "open_interpreter" and self.oi_agent:
+                await self._run_open_interpreter(message, system_prompt=system_prompt)
+            else:
+                # Default to Anthropic / Internal Tool Loop
+                await self._llm_step(
+                    message=message,
+                    system_prompt=system_prompt,
+                    messages=history,
+                    tools=tool_definitions
+                )
 
         except Exception as e:
             logger.exception(f"❌ Error processing message: {e}")
@@ -322,6 +346,71 @@ class AgentLoop:
                 data={"name": name, "params": params, "result": error_msg, "status": "error"}
             ))
             return error_msg
+
+    async def _run_open_interpreter(self, message: InboundMessage, system_prompt: str = "") -> None:
+        """Execute using Open Interpreter backend."""
+        logger.info(f"🚀 Routing to Open Interpreter: {message.content[:50]}...")
+        
+        # Emit Thinking Event
+        await self.bus.publish_system(SystemEvent(
+            event_type="thinking",
+            data={"session_key": message.session_key}
+        ))
+        
+        try:
+            full_response = ""
+            async for chunk in self.oi_agent.run(message.content, system_message=system_prompt):
+                chunk_type = chunk.get("type")
+                content = chunk.get("content", "")
+                
+                if chunk_type == "message":
+                    full_response += content
+                    # Stream text
+                    await self.bus.publish_outbound(OutboundMessage(
+                        channel=message.channel,
+                        chat_id=message.chat_id,
+                        content=content,
+                        is_stream_chunk=True
+                    ))
+                
+                elif chunk_type == "code":
+                    # Emit code output as a distinct event or formatted block
+                    code_block = f"\n```\n{content}\n```\n"
+                    full_response += code_block
+                    await self.bus.publish_outbound(OutboundMessage(
+                        channel=message.channel,
+                        chat_id=message.chat_id,
+                        content=code_block,
+                        is_stream_chunk=True
+                    ))
+                    
+                elif chunk_type == "error":
+                    full_response += f"\n❌ {content}"
+                    await self.bus.publish_outbound(OutboundMessage(
+                        channel=message.channel,
+                        chat_id=message.chat_id,
+                        content=f"\n❌ {content}",
+                        is_stream_chunk=True
+                    ))
+
+            # Send stream end
+            await self.bus.publish_outbound(OutboundMessage(
+                channel=message.channel,
+                chat_id=message.chat_id,
+                content="",
+                is_stream_end=True
+            ))
+            
+            # Save to memory
+            await self.memory.add_to_session(
+                session_key=message.session_key,
+                role="assistant",
+                content=full_response
+            )
+            
+        except Exception as e:
+            logger.exception(f"Open Interpreter execution failed: {e}")
+            await self._send_response(message, f"❌ Engine Failure: {str(e)}")
 
     async def _send_response(self, original: InboundMessage, content: str) -> None:
         """Helper to send a simple text response."""

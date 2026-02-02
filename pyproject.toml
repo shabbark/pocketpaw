@@ -39,6 +39,8 @@ dependencies = [
     # Agent Backends
     "open-interpreter>=0.2.0",
     "claude-agent-sdk>=0.1.0",
+    # Browser Automation
+    "playwright>=1.40.0",
     # Config
     "pydantic>=2.5.0",
     "pydantic-settings>=2.1.0",
