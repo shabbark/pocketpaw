@@ -88,7 +88,7 @@ class TestCrewView:
 
 
 class TestAgentCreation:
-    """Tests for creating agents in Crew view."""
+    """Tests for creating and deleting agents in Crew view."""
 
     def test_create_agent_modal_opens(self, page: Page, dashboard_url: str):
         """Test that clicking New Agent opens the creation form."""
@@ -128,6 +128,58 @@ class TestAgentCreation:
         # Agent should appear somewhere (list or activity feed)
         expect(page.get_by_text("E2E Test Agent").first).to_be_visible(timeout=5000)
 
+    def test_delete_agent_flow(self, page: Page, dashboard_url: str):
+        """Test deleting an agent through the UI."""
+        page.goto(dashboard_url)
+        page.click("button:has-text('Crew')")
+        page.wait_for_selector("text=Loading Crew...", state="hidden", timeout=10000)
+
+        # First create an agent to delete
+        page.locator("button:has-text('New Agent')").first.click()
+        page.wait_for_timeout(300)
+        page.get_by_placeholder("Agent name").fill("DeleteMe Agent")
+        page.get_by_placeholder("Role (e.g., Research Lead)").fill("Temp Role")
+        page.locator("button:has-text('Create Agent'):visible").click()
+        page.wait_for_timeout(1500)
+
+        # Verify agent was created
+        expect(page.get_by_text("DeleteMe Agent").first).to_be_visible(timeout=5000)
+
+        # Count agents before deletion
+        initial_count = page.locator("text=DeleteMe Agent").count()
+
+        # Handle the confirm dialog - accept it
+        page.on("dialog", lambda dialog: dialog.accept())
+
+        # Use JavaScript to click the delete button directly
+        # This avoids issues with hover states and Lucide icon transformation
+        page.evaluate("""
+            () => {
+                // Find the agent card with our test agent
+                const spans = document.querySelectorAll('span');
+                for (const span of spans) {
+                    if (span.textContent === 'DeleteMe Agent') {
+                        // Find the parent group div
+                        const card = span.closest('.group');
+                        if (card) {
+                            // Find and click the delete button
+                            const btn = card.querySelector('button.ml-auto');
+                            if (btn) btn.click();
+                        }
+                        break;
+                    }
+                }
+            }
+        """)
+
+        # Wait for confirm dialog and deletion
+        page.wait_for_timeout(1500)
+
+        # Check that agent count decreased or agent is no longer visible
+        final_count = page.locator("text=DeleteMe Agent").count()
+        # The count should decrease (agent removed from list, may still be in activity)
+        assert final_count < initial_count or final_count == 0, "Agent should be deleted"
+
 
 class TestTaskCreation:
     """Tests for creating tasks in Crew view."""
@@ -145,26 +197,34 @@ class TestTaskCreation:
         expect(page.locator("input[placeholder*='title' i]")).to_be_visible()
 
     def test_create_task_flow(self, page: Page, dashboard_url: str):
-        """Test creating a new task through the UI."""
+        """Test creating a new task through the UI and verify it appears in task list."""
         page.goto(dashboard_url)
         page.click("button:has-text('Crew')")
         page.wait_for_selector("text=Loading Crew...", state="hidden", timeout=10000)
+
+        # Make sure "All" filter is selected to see all tasks
+        page.click("button:has-text('All')")
+        page.wait_for_timeout(200)
 
         # Click New Task button in header
         page.locator("button:has-text('New Task')").first.click()
         page.wait_for_timeout(300)  # Wait for modal animation
 
         # Fill form using placeholder
-        page.get_by_placeholder("Task title").fill("E2E Test Task")
+        page.get_by_placeholder("Task title").fill("E2E Task In List")
 
-        # Submit - click the button inside the modal (second Create Task button)
-        page.get_by_role("button", name="Create Task").nth(1).click()
+        # Submit - click the Create Task button inside the modal
+        modal_submit_btn = page.locator("button:has-text('Create Task')").filter(
+            has=page.locator(":scope:enabled")
+        )
+        modal_submit_btn.last.click()
 
-        # Wait for API response
-        page.wait_for_timeout(1500)
+        # Wait for API response and UI update
+        page.wait_for_timeout(2000)
 
-        # Task should appear somewhere (list or activity feed)
-        expect(page.get_by_text("E2E Test Task").first).to_be_visible(timeout=5000)
+        # Verify task appears in the task list panel (not just activity feed)
+        task_panel = page.locator("div.flex-1.flex.flex-col.border-r")
+        expect(task_panel.get_by_text("E2E Task In List").first).to_be_visible(timeout=5000)
 
 
 class TestSidebarNavigation:

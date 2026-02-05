@@ -15,7 +15,7 @@
  * - Added loadMCData(), createMCAgent(), createMCTask() methods
  * - Added selectMCTask(), updateMCTaskStatus(), updateMCTaskPriority() methods
  * - Added getAgentInitial(), getAgentName() helper methods
- * - Added filteredMCTasks getter for task filtering
+ * - Added getFilteredMCTasks() method for task filtering
  * - Added formatMCDate() for relative time formatting
  *
  * Changes (2026-02-04):
@@ -1329,8 +1329,9 @@ function app() {
 
         /**
          * Get filtered memories based on search query
+         * Note: Using method instead of getter for Alpine.js reactivity compatibility
          */
-        get filteredMemories() {
+        getFilteredMemories() {
             const search = this.memorySearch.toLowerCase().trim();
             const allMemories = [
                 ...this.longTermMemory.map(m => ({ ...m, type: 'long_term', id: m.timestamp })),
@@ -1632,8 +1633,9 @@ function app() {
 
         /**
          * Get filtered tasks based on current filter
+         * Note: Using method instead of getter for Alpine.js reactivity compatibility
          */
-        get filteredMCTasks() {
+        getFilteredMCTasks() {
             const filter = this.missionControl.taskFilter;
             if (filter === 'all') return this.missionControl.tasks;
             return this.missionControl.tasks.filter(t => t.status === filter);
