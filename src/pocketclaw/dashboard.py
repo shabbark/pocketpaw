@@ -7,6 +7,7 @@ Changes:
   - 2026-02-06: Channel config REST API (GET /api/channels/status, POST save/toggle).
   - 2026-02-06: Refactored adapter storage to _channel_adapters dict; auto-start all configured.
   - 2026-02-06: Auto-start Discord/WhatsApp adapters alongside dashboard; WhatsApp webhook routes.
+  - 2026-02-12: Added Deep Work API router at /api/deep-work/*.
   - 2026-02-05: Added Mission Control API router at /api/mission-control/*.
   - 2026-02-04: Added Telegram setup API endpoints (/api/telegram/status, /api/telegram/setup, /api/telegram/pairing-status).
   - 2026-02-03: Cleaned up duplicate imports, fixed duplicate save() calls.
@@ -41,6 +42,7 @@ from pocketclaw.bus import get_message_bus
 from pocketclaw.bus.adapters.websocket_adapter import WebSocketAdapter
 from pocketclaw.config import Settings, get_access_token, get_config_path, regenerate_token
 from pocketclaw.daemon import get_daemon
+from pocketclaw.deep_work.api import router as deep_work_router
 from pocketclaw.memory import MemoryType, get_memory_manager
 from pocketclaw.mission_control.api import router as mission_control_router
 from pocketclaw.scheduler import get_scheduler
@@ -120,6 +122,10 @@ app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
 
 # Mount Mission Control API router
 app.include_router(mission_control_router, prefix="/api/mission-control")
+
+# Mount Deep Work API router
+
+app.include_router(deep_work_router, prefix="/api/deep-work")
 
 
 async def broadcast_reminder(reminder: dict):
