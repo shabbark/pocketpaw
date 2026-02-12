@@ -1,7 +1,16 @@
 """Mission Control API endpoints.
 
 Created: 2026-02-05
-Updated: 2026-02-05 - Added task documents, attachments endpoints
+Updated: 2026-02-12 — Added Deep Work project endpoints:
+  - POST /projects — create project
+  - GET /projects — list projects (optional status filter)
+  - GET /projects/{id} — get project + tasks + progress
+  - PATCH /projects/{id} — update project fields
+  - DELETE /projects/{id} — delete project
+  - POST /projects/{id}/approve — set status to approved
+  - POST /projects/{id}/pause — set status to paused
+  - POST /projects/{id}/resume — set status to executing
+
 FastAPI router for Mission Control operations.
 
 Provides REST endpoints for:
@@ -12,6 +21,7 @@ Provides REST endpoints for:
 - Activity: Feed and stats
 - Notifications: List and mark read/delivered
 - Execution: Run tasks with agents, stop running tasks
+- Projects: CRUD and lifecycle management (Deep Work)
 
 Task Execution Endpoints:
 - POST /tasks/{id}/run - Start task execution (streams via WebSocket)
@@ -655,6 +665,157 @@ async def mark_read(notification_id: str) -> SuccessResponse:
         raise HTTPException(status_code=404, detail="Notification not found")
 
     return SuccessResponse(message="Notification marked as read")
+
+
+# ============================================================================
+# Project Endpoints (Deep Work)
+# ============================================================================
+
+
+class CreateProjectRequest(BaseModel):
+    """Request to create a new project."""
+
+    title: str = Field(..., min_length=1, max_length=200)
+    description: str = Field(default="")
+    tags: list[str] = Field(default_factory=list)
+
+
+class UpdateProjectRequest(BaseModel):
+    """Request to update a project."""
+
+    title: str | None = None
+    description: str | None = None
+    status: str | None = None
+    tags: list[str] | None = None
+
+
+@router.post("/projects")
+async def create_project(request: CreateProjectRequest) -> dict[str, Any]:
+    """Create a new project."""
+    manager = get_mission_control_manager()
+
+    project = await manager.create_project(
+        title=request.title,
+        description=request.description,
+        tags=request.tags,
+    )
+
+    return {"project": project.to_dict()}
+
+
+@router.get("/projects")
+async def list_projects(status: str | None = None, limit: int = 100) -> dict[str, Any]:
+    """List projects, optionally filtered by status."""
+    manager = get_mission_control_manager()
+    projects = await manager.list_projects(status)
+
+    return {
+        "projects": [p.to_dict() for p in projects[:limit]],
+        "count": len(projects),
+    }
+
+
+@router.get("/projects/{project_id}")
+async def get_project(project_id: str) -> dict[str, Any]:
+    """Get a project by ID, including its tasks and progress."""
+    manager = get_mission_control_manager()
+    project = await manager.get_project(project_id)
+
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    tasks = await manager.get_project_tasks(project_id)
+    progress = await manager.get_project_progress(project_id)
+
+    return {
+        "project": project.to_dict(),
+        "tasks": [t.to_dict() for t in tasks],
+        "progress": progress,
+    }
+
+
+@router.patch("/projects/{project_id}")
+async def update_project(project_id: str, request: UpdateProjectRequest) -> dict[str, Any]:
+    """Update a project's details."""
+    from pocketclaw.deep_work.models import ProjectStatus
+
+    manager = get_mission_control_manager()
+    project = await manager.get_project(project_id)
+
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    if request.title is not None:
+        project.title = request.title
+    if request.description is not None:
+        project.description = request.description
+    if request.status is not None:
+        project.status = ProjectStatus(request.status)
+    if request.tags is not None:
+        project.tags = request.tags
+
+    await manager.update_project(project)
+    return {"project": project.to_dict()}
+
+
+@router.delete("/projects/{project_id}")
+async def delete_project(project_id: str) -> SuccessResponse:
+    """Delete a project."""
+    manager = get_mission_control_manager()
+    deleted = await manager.delete_project(project_id)
+
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    return SuccessResponse(message=f"Project {project_id} deleted")
+
+
+@router.post("/projects/{project_id}/approve")
+async def approve_project(project_id: str) -> dict[str, Any]:
+    """Set a project's status to approved."""
+    from pocketclaw.deep_work.models import ProjectStatus
+
+    manager = get_mission_control_manager()
+    project = await manager.get_project(project_id)
+
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    project.status = ProjectStatus.APPROVED
+    await manager.update_project(project)
+    return {"project": project.to_dict()}
+
+
+@router.post("/projects/{project_id}/pause")
+async def pause_project(project_id: str) -> dict[str, Any]:
+    """Set a project's status to paused."""
+    from pocketclaw.deep_work.models import ProjectStatus
+
+    manager = get_mission_control_manager()
+    project = await manager.get_project(project_id)
+
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    project.status = ProjectStatus.PAUSED
+    await manager.update_project(project)
+    return {"project": project.to_dict()}
+
+
+@router.post("/projects/{project_id}/resume")
+async def resume_project(project_id: str) -> dict[str, Any]:
+    """Set a project's status to executing."""
+    from pocketclaw.deep_work.models import ProjectStatus
+
+    manager = get_mission_control_manager()
+    project = await manager.get_project(project_id)
+
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    project.status = ProjectStatus.EXECUTING
+    await manager.update_project(project)
+    return {"project": project.to_dict()}
 
 
 # ============================================================================

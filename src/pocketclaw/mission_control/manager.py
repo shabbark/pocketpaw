@@ -1,6 +1,11 @@
 """Mission Control manager.
 
 Created: 2026-02-05
+Updated: 2026-02-12 — Added project CRUD methods for Deep Work orchestration:
+  - create_project, get_project, list_projects
+  - get_project_tasks, get_project_progress
+  - update_project, delete_project
+
 High-level operations for Mission Control.
 
 Similar to MemoryManager, this provides convenient methods
@@ -10,6 +15,7 @@ that combine storage operations with business logic:
 - Extracting @mentions from messages
 - Managing agent heartbeats
 - Generating daily standups
+- Project lifecycle management (Deep Work)
 """
 
 import logging
@@ -535,6 +541,124 @@ class MissionControlManager:
         )
 
         return document
+
+    # =========================================================================
+    # Project Operations (Deep Work)
+    # =========================================================================
+
+    async def create_project(
+        self,
+        title: str,
+        description: str = "",
+        creator_id: str = "human",
+        tags: list[str] | None = None,
+    ) -> "Project":
+        """Create a new project and log the activity.
+
+        Args:
+            title: Short project name
+            description: Full project description and goals
+            creator_id: Agent or user who created this (default "human")
+            tags: Categorization tags
+
+        Returns:
+            The created Project
+        """
+        from pocketclaw.deep_work.models import Project
+
+        project = Project(
+            title=title,
+            description=description,
+            creator_id=creator_id,
+            tags=tags or [],
+        )
+
+        await self._store.save_project(project)
+
+        # Log activity (reuse TASK_CREATED for project creation)
+        await self._log_activity(
+            ActivityType.TASK_CREATED,
+            agent_id=creator_id if creator_id != "human" else None,
+            message=f"Created project: {title}",
+        )
+
+        logger.info(f"Created project: {title}")
+        return project
+
+    async def get_project(self, project_id: str) -> "Project | None":
+        """Get a project by ID."""
+        return await self._store.get_project(project_id)
+
+    async def list_projects(self, status: str | None = None) -> "list[Project]":
+        """List all projects, optionally filtered by status."""
+        return await self._store.list_projects(status)
+
+    async def get_project_tasks(self, project_id: str) -> list[Task]:
+        """Get all tasks belonging to a project.
+
+        Args:
+            project_id: Project to get tasks for
+
+        Returns:
+            List of tasks with matching project_id
+        """
+        all_tasks = await self._store.list_tasks()
+        return [t for t in all_tasks if t.project_id == project_id]
+
+    async def get_project_progress(self, project_id: str) -> dict[str, Any]:
+        """Get progress summary for a project.
+
+        Args:
+            project_id: Project to get progress for
+
+        Returns:
+            Dict with total, completed, in_progress, blocked, human_pending, percent
+        """
+        tasks = await self.get_project_tasks(project_id)
+        total = len(tasks)
+        completed = len([t for t in tasks if t.status == TaskStatus.DONE])
+        in_progress = len([t for t in tasks if t.status == TaskStatus.IN_PROGRESS])
+        blocked = len([t for t in tasks if t.status == TaskStatus.BLOCKED])
+        human_pending = len(
+            [t for t in tasks if t.task_type == "human" and t.status != TaskStatus.DONE]
+        )
+        percent = (completed / total * 100) if total > 0 else 0.0
+
+        return {
+            "total": total,
+            "completed": completed,
+            "in_progress": in_progress,
+            "blocked": blocked,
+            "human_pending": human_pending,
+            "percent": round(percent, 1),
+        }
+
+    async def update_project(self, project: "Project") -> str:
+        """Update a project.
+
+        Args:
+            project: Project instance to save
+
+        Returns:
+            The project ID
+        """
+        return await self._store.save_project(project)
+
+    async def delete_project(self, project_id: str) -> bool:
+        """Delete a project and all its tasks.
+
+        Args:
+            project_id: Project to delete
+
+        Returns:
+            True if successfully deleted
+        """
+        # Delete project's tasks first
+        tasks = await self.get_project_tasks(project_id)
+        for task in tasks:
+            await self._store.delete_task(task.id)
+
+        return await self._store.delete_project(project_id)
 
     # =========================================================================
     # Activity & Notification Operations
