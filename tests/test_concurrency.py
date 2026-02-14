@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from pocketclaw.bus import Channel, InboundMessage
+from pocketpaw.bus import Channel, InboundMessage
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -41,11 +41,11 @@ def _make_slow_router(delay: float = 0.1):
 # ---------------------------------------------------------------------------
 
 
-@patch("pocketclaw.agents.loop.get_injection_scanner")
-@patch("pocketclaw.agents.loop.get_message_bus")
-@patch("pocketclaw.agents.loop.get_memory_manager")
-@patch("pocketclaw.agents.loop.AgentContextBuilder")
-@patch("pocketclaw.agents.loop.get_settings")
+@patch("pocketpaw.agents.loop.get_injection_scanner")
+@patch("pocketpaw.agents.loop.get_message_bus")
+@patch("pocketpaw.agents.loop.get_memory_manager")
+@patch("pocketpaw.agents.loop.AgentContextBuilder")
+@patch("pocketpaw.agents.loop.get_settings")
 async def test_session_lock_serialises_same_session(
     mock_get_settings,
     mock_ctx_cls,
@@ -84,7 +84,7 @@ async def test_session_lock_serialises_same_session(
     scanner = MagicMock()
     mock_get_scanner.return_value = scanner
 
-    from pocketclaw.agents.loop import AgentLoop
+    from pocketpaw.agents.loop import AgentLoop
 
     loop = AgentLoop()
 
@@ -121,11 +121,11 @@ async def test_session_lock_serialises_same_session(
 # ---------------------------------------------------------------------------
 
 
-@patch("pocketclaw.agents.loop.get_injection_scanner")
-@patch("pocketclaw.agents.loop.get_message_bus")
-@patch("pocketclaw.agents.loop.get_memory_manager")
-@patch("pocketclaw.agents.loop.AgentContextBuilder")
-@patch("pocketclaw.agents.loop.get_settings")
+@patch("pocketpaw.agents.loop.get_injection_scanner")
+@patch("pocketpaw.agents.loop.get_message_bus")
+@patch("pocketpaw.agents.loop.get_memory_manager")
+@patch("pocketpaw.agents.loop.AgentContextBuilder")
+@patch("pocketpaw.agents.loop.get_settings")
 async def test_cross_session_runs_in_parallel(
     mock_get_settings,
     mock_ctx_cls,
@@ -164,7 +164,7 @@ async def test_cross_session_runs_in_parallel(
     scanner = MagicMock()
     mock_get_scanner.return_value = scanner
 
-    from pocketclaw.agents.loop import AgentLoop
+    from pocketpaw.agents.loop import AgentLoop
 
     loop = AgentLoop()
 
@@ -204,11 +204,11 @@ async def test_cross_session_runs_in_parallel(
 # ---------------------------------------------------------------------------
 
 
-@patch("pocketclaw.agents.loop.get_injection_scanner")
-@patch("pocketclaw.agents.loop.get_message_bus")
-@patch("pocketclaw.agents.loop.get_memory_manager")
-@patch("pocketclaw.agents.loop.AgentContextBuilder")
-@patch("pocketclaw.agents.loop.get_settings")
+@patch("pocketpaw.agents.loop.get_injection_scanner")
+@patch("pocketpaw.agents.loop.get_message_bus")
+@patch("pocketpaw.agents.loop.get_memory_manager")
+@patch("pocketpaw.agents.loop.AgentContextBuilder")
+@patch("pocketpaw.agents.loop.get_settings")
 async def test_global_semaphore_caps_concurrency(
     mock_get_settings,
     mock_ctx_cls,
@@ -247,7 +247,7 @@ async def test_global_semaphore_caps_concurrency(
     scanner = MagicMock()
     mock_get_scanner.return_value = scanner
 
-    from pocketclaw.agents.loop import AgentLoop
+    from pocketpaw.agents.loop import AgentLoop
 
     loop = AgentLoop()
 
@@ -288,13 +288,18 @@ async def test_pocketpaw_native_uses_async_anthropic():
     settings = MagicMock()
     settings.anthropic_api_key = "sk-test"
     settings.anthropic_model = "claude-sonnet-4-5-20250929"
+    settings.llm_provider = "anthropic"
+    settings.ollama_host = "http://localhost:11434"
+    settings.ollama_model = "llama3.2"
+    settings.openai_api_key = None
+    settings.openai_model = "gpt-4o"
     settings.tool_profile = "full"
     settings.tools_allow = []
     settings.tools_deny = []
     settings.file_jail_path = Path.home()
     settings.smart_routing_enabled = False
 
-    with patch("pocketclaw.agents.pocketpaw_native.AsyncAnthropic") as mock_cls:
+    with patch("anthropic.AsyncAnthropic") as mock_cls:
         mock_client = MagicMock()
         mock_cls.return_value = mock_client
 
@@ -307,12 +312,12 @@ async def test_pocketpaw_native_uses_async_anthropic():
         mock_response.content = [text_block]
         mock_client.messages.create = AsyncMock(return_value=mock_response)
 
-        from pocketclaw.agents.pocketpaw_native import PocketPawOrchestrator
+        from pocketpaw.agents.pocketpaw_native import PocketPawOrchestrator
 
         orch = PocketPawOrchestrator(settings)
 
-        # Confirm AsyncAnthropic was used
-        mock_cls.assert_called_once_with(api_key="sk-test")
+        # Confirm AsyncAnthropic was used with Anthropic provider
+        mock_cls.assert_called_once_with(api_key="sk-test", timeout=60.0, max_retries=2)
 
         # Run a chat and confirm messages.create was awaited
         events = []
@@ -335,8 +340,8 @@ async def test_oi_semaphore_prevents_concurrent_access():
     settings.anthropic_api_key = "sk-test"
     settings.anthropic_model = "claude-sonnet-4-5-20250929"
 
-    with patch("pocketclaw.agents.open_interpreter.interpreter", create=True):
-        from pocketclaw.agents.open_interpreter import OpenInterpreterAgent
+    with patch("pocketpaw.agents.open_interpreter.interpreter", create=True):
+        from pocketpaw.agents.open_interpreter import OpenInterpreterAgent
 
         agent = OpenInterpreterAgent(settings)
 
@@ -352,8 +357,8 @@ async def test_oi_semaphore_prevents_concurrent_access():
 
 async def test_file_memory_store_session_lock(tmp_path):
     """Concurrent _save_session_entry calls should not corrupt session JSON."""
-    from pocketclaw.memory.file_store import FileMemoryStore
-    from pocketclaw.memory.protocol import MemoryEntry, MemoryType
+    from pocketpaw.memory.file_store import FileMemoryStore
+    from pocketpaw.memory.protocol import MemoryEntry, MemoryType
 
     store = FileMemoryStore(base_path=tmp_path)
 
@@ -390,7 +395,7 @@ async def test_file_memory_store_session_lock(tmp_path):
 
 def test_config_max_concurrent_conversations_default():
     """Settings should have max_concurrent_conversations with default 5."""
-    from pocketclaw.config import Settings
+    from pocketpaw.config import Settings
 
     s = Settings()
     assert s.max_concurrent_conversations == 5
@@ -398,12 +403,12 @@ def test_config_max_concurrent_conversations_default():
 
 def test_config_max_concurrent_conversations_save():
     """max_concurrent_conversations should appear in save() output."""
-    from pocketclaw.config import Settings
+    from pocketpaw.config import Settings
 
     s = Settings(max_concurrent_conversations=10)
 
     # Capture the JSON that would be written
-    with patch("pocketclaw.config.get_config_path") as mock_path:
+    with patch("pocketpaw.config.get_config_path") as mock_path:
         mock_file = MagicMock()
         mock_path.return_value = mock_file
         mock_file.exists.return_value = False

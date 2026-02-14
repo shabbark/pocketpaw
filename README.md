@@ -71,10 +71,54 @@ uv run pocketpaw
 </details>
 
 PocketPaw will open the web dashboard in your browser and be ready to go.
-No Docker. No config files. No YAML. No dependency hell.
+No config files. No YAML. No dependency hell.
 
 **Talk to your agent from anywhere:**
 Telegram · Discord · Slack · WhatsApp · Web Dashboard
+
+---
+
+## Docker
+
+Run PocketPaw in a container — great for servers, VPS, or always-on setups.
+
+```bash
+# Clone the repo
+git clone https://github.com/pocketpaw/pocketpaw.git
+cd pocketpaw
+
+# Copy and fill in your env vars
+cp .env.example .env
+
+# Start the dashboard
+docker compose up -d
+```
+
+Dashboard is at `http://localhost:8888`. Log in with the access token:
+
+```bash
+docker exec pocketpaw cat /home/pocketpaw/.pocketpaw/access_token
+```
+
+<details>
+<summary>Optional services (Ollama, Qdrant)</summary>
+
+```bash
+# With Ollama for local LLM inference
+docker compose --profile ollama up -d
+
+# With Qdrant for mem0 vector memory
+docker compose --profile qdrant up -d
+
+# Both
+docker compose --profile ollama --profile qdrant up -d
+```
+
+When using Ollama inside Docker, set `POCKETPAW_OLLAMA_HOST=http://ollama:11434` in your `.env` so PocketPaw reaches the Ollama container by service name.
+
+</details>
+
+Data persists in a named Docker volume across restarts. See [`.env.example`](.env.example) for all available configuration options.
 
 ---
 
@@ -217,7 +261,7 @@ Switch anytime in settings or config.
 
 ### File-based Memory (Default)
 
-Stores memories as readable markdown in `~/.pocketclaw/memory/`:
+Stores memories as readable markdown in `~/.pocketpaw/memory/`:
 
 - `MEMORY.md`: Long-term facts about you
 - `sessions/`: Conversation history with smart compaction
@@ -231,7 +275,7 @@ Long conversations are automatically compacted to stay within budget:
 
 ### USER.md Profile
 
-PocketPaw creates identity files at `~/.pocketclaw/identity/` including `USER.md`, a profile loaded into every conversation so the agent knows your preferences.
+PocketPaw creates identity files at `~/.pocketpaw/identity/` including `USER.md`, a profile loaded into every conversation so the agent knows your preferences.
 
 ### Optional: Mem0 (Semantic Memory)
 
@@ -247,7 +291,7 @@ See [Memory documentation](documentation/features/memory.md) for details.
 
 ## Configuration
 
-Config lives in `~/.pocketclaw/config.json`. API keys and tokens are automatically encrypted in `secrets.enc`, never stored as plain text.
+Config lives in `~/.pocketpaw/config.json`. API keys and tokens are automatically encrypted in `secrets.enc`, never stored as plain text.
 
 ```json
 {
@@ -265,23 +309,23 @@ Config lives in `~/.pocketclaw/config.json`. API keys and tokens are automatical
 }
 ```
 
-Or use environment variables (all prefixed with `POCKETCLAW_`):
+Or use environment variables (all prefixed with `POCKETPAW_`):
 
 ```bash
 # Core
-export POCKETCLAW_ANTHROPIC_API_KEY="sk-ant-..."
-export POCKETCLAW_AGENT_BACKEND="claude_agent_sdk"
+export POCKETPAW_ANTHROPIC_API_KEY="sk-ant-..."
+export POCKETPAW_AGENT_BACKEND="claude_agent_sdk"
 
 # Channels
-export POCKETCLAW_DISCORD_BOT_TOKEN="..."
-export POCKETCLAW_SLACK_BOT_TOKEN="xoxb-..."
-export POCKETCLAW_SLACK_APP_TOKEN="xapp-..."
+export POCKETPAW_DISCORD_BOT_TOKEN="..."
+export POCKETPAW_SLACK_BOT_TOKEN="xoxb-..."
+export POCKETPAW_SLACK_APP_TOKEN="xapp-..."
 
 # Integrations
-export POCKETCLAW_GOOGLE_OAUTH_CLIENT_ID="..."
-export POCKETCLAW_GOOGLE_OAUTH_CLIENT_SECRET="..."
-export POCKETCLAW_TAVILY_API_KEY="..."
-export POCKETCLAW_GOOGLE_API_KEY="..."
+export POCKETPAW_GOOGLE_OAUTH_CLIENT_ID="..."
+export POCKETPAW_GOOGLE_OAUTH_CLIENT_SECRET="..."
+export POCKETPAW_TAVILY_API_KEY="..."
+export POCKETPAW_GOOGLE_API_KEY="..."
 ```
 
 See the [full configuration reference](documentation/features/) for all available settings.
@@ -299,8 +343,8 @@ See the [full configuration reference](documentation/features/) for all availabl
 - **Tool Policy.** Restrict agent tool access with profiles (`minimal`, `coding`, `full`) and allow/deny lists.
 - **Plan Mode.** Require human approval before executing shell commands or file edits.
 - **Security Audit CLI.** Run `pocketpaw --security-audit` to check 7 aspects (config permissions, API key exposure, audit log, etc.).
-- **Self-Audit Daemon.** Daily automated health checks (12 checks) with JSON reports at `~/.pocketclaw/audit_reports/`.
-- **Audit Logging.** Append-only log at `~/.pocketclaw/audit.jsonl`.
+- **Self-Audit Daemon.** Daily automated health checks (12 checks) with JSON reports at `~/.pocketpaw/audit_reports/`.
+- **Audit Logging.** Append-only log at `~/.pocketpaw/audit.jsonl`.
 - **Single User Lock.** Only authorized users can control the agent.
 - **File Jail.** Operations restricted to allowed directories.
 - **Local LLM Option.** Use Ollama and nothing phones home.

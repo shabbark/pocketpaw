@@ -26,11 +26,11 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
-VERSION = "0.2.0"
+VERSION = "0.4.0"
 PACKAGE = "pocketpaw"
 GIT_REPO = "https://github.com/pocketpaw/pocketpaw.git"
 GIT_BRANCH = "main"
-CONFIG_DIR = Path.home() / ".pocketclaw"
+CONFIG_DIR = Path.home() / ".pocketpaw"
 CONFIG_PATH = CONFIG_DIR / "config.json"
 
 # ── InquirerPy / Rich Bootstrap ────────────────────────────────────────
@@ -874,7 +874,7 @@ class PackageInstaller:
 
 
 class ConfigWriter:
-    """Write ~/.pocketclaw/config.json, merging with existing."""
+    """Write ~/.pocketpaw/config.json, merging with existing."""
 
     def write(self, config: dict) -> None:
         """Write config, preserving existing keys not in the new config."""
@@ -1122,7 +1122,7 @@ class PocketPawInstaller:
         except FileNotFoundError:
             # Might not be on PATH yet, try python -m
             try:
-                os.execvp(sys.executable, [sys.executable, "-m", "pocketclaw"])
+                os.execvp(sys.executable, [sys.executable, "-m", "pocketpaw"])
             except Exception as exc:
                 print(f"  Could not launch: {exc}")
                 print("  Try running 'pocketpaw' manually.\n")

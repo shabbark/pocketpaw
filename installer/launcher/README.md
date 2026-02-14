@@ -26,16 +26,16 @@ A lightweight desktop app (~15MB) that lets non-developers run PocketPaw with ze
 
 ## Modules
 
-| File | Purpose |
-|------|---------|
-| `__main__.py` | Entry point — orchestrates bootstrap, server, tray |
-| `bootstrap.py` | Python detection, venv creation, pip install |
-| `server.py` | Server process lifecycle, PID management, health checks |
-| `tray.py` | System tray icon with dynamic menu (via pystray) |
-| `splash.py` | First-run tkinter progress window |
-| `updater.py` | PyPI version check and one-click upgrade |
-| `build/build.py` | PyInstaller build script |
-| `build/launcher.spec` | PyInstaller spec file (folder mode, platform-specific) |
+| File                  | Purpose                                                 |
+| --------------------- | ------------------------------------------------------- |
+| `__main__.py`         | Entry point — orchestrates bootstrap, server, tray      |
+| `bootstrap.py`        | Python detection, venv creation, pip install            |
+| `server.py`           | Server process lifecycle, PID management, health checks |
+| `tray.py`             | System tray icon with dynamic menu (via pystray)        |
+| `splash.py`           | First-run tkinter progress window                       |
+| `updater.py`          | PyPI version check and one-click upgrade                |
+| `build/build.py`      | PyInstaller build script                                |
+| `build/launcher.spec` | PyInstaller spec file (folder mode, platform-specific)  |
 
 ## Running from source
 
@@ -54,16 +54,16 @@ PYTHONPATH=. python -m installer.launcher --no-browser --no-tray --port 9999
 
 ### CLI Options
 
-| Flag | Description |
-|------|-------------|
-| `--no-browser` | Don't auto-open the browser |
-| `--no-tray` | Run headless (no system tray icon, Ctrl+C to stop) |
-| `--port PORT` | Override the dashboard port (default: 8888) |
+| Flag            | Description                                                                  |
+| --------------- | ---------------------------------------------------------------------------- |
+| `--no-browser`  | Don't auto-open the browser                                                  |
+| `--no-tray`     | Run headless (no system tray icon, Ctrl+C to stop)                           |
+| `--port PORT`   | Override the dashboard port (default: 8888)                                  |
 | `--extras LIST` | Comma-separated pip extras, e.g. `telegram,discord` (default: `recommended`) |
-| `--reset` | Delete the venv and reinstall from scratch |
-| `--dev` | Install from the `dev` branch instead of PyPI (shortcut for `--branch dev`) |
-| `--branch NAME` | Install from a specific git branch (e.g. `--branch feat/new-thing`) |
-| `--local PATH` | Install from a local directory in editable mode |
+| `--reset`       | Delete the venv and reinstall from scratch                                   |
+| `--dev`         | Install from the `dev` branch instead of PyPI (shortcut for `--branch dev`)  |
+| `--branch NAME` | Install from a specific git branch (e.g. `--branch feat/new-thing`)          |
+| `--local PATH`  | Install from a local directory in editable mode                              |
 
 ## Dev / Branch Testing
 
@@ -105,7 +105,7 @@ PYTHONPATH=. python -m installer.launcher --dev --reset --no-tray
 
 ### How dev mode works
 
-- A marker file `~/.pocketclaw/.dev-mode` is created when using `--dev`, `--branch`, or `--local`
+- A marker file `~/.pocketpaw/.dev-mode` is created when using `--dev`, `--branch`, or `--local`
 - While this marker exists, the **updater** skips PyPI version checks and instead offers to re-pull from the configured branch
 - To switch back to PyPI releases, use `--reset` without `--dev`:
   ```bash
@@ -143,6 +143,7 @@ hdiutil create -volname PocketPaw \
 Option A: Use [Inno Setup](https://jrsoftware.org/isinfo.php) (free) — point it at `dist\launcher\PocketPaw\`.
 
 Option B: Zip the folder for a portable build:
+
 ```powershell
 Compress-Archive -Path dist\launcher\PocketPaw -DestinationPath dist\launcher\PocketPaw-portable.zip
 ```
@@ -150,11 +151,13 @@ Compress-Archive -Path dist\launcher\PocketPaw -DestinationPath dist\launcher\Po
 ### Automated builds (CI)
 
 The GitHub Actions workflow `.github/workflows/build-launcher.yml` builds for:
+
 - **macOS (Apple Silicon)** — `.dmg`
 - **macOS (Intel)** — `.dmg`
 - **Windows** — `.exe` installer (via Inno Setup)
 
 Triggered on:
+
 - **Release published** — artifacts are attached to the GitHub release
 - **Manual dispatch** — artifacts are uploaded as workflow artifacts
 
@@ -164,13 +167,13 @@ Triggered on:
 
 1. Searches for Python 3.11+ in common locations (`python3`, `python3.12`, `python3.11`, etc.)
 2. On Windows, if no Python found, downloads the [Python embeddable package](https://www.python.org/downloads/) (~15MB, no admin needed)
-3. Creates a venv at `~/.pocketclaw/venv/`
+3. Creates a venv at `~/.pocketpaw/venv/`
 4. Runs `pip install pocketpaw[recommended]` inside the venv
 
 ### Server management (`server.py`)
 
-- Starts PocketPaw as a subprocess: `{venv}/bin/python -m pocketclaw --port {port}`
-- Writes PID to `~/.pocketclaw/launcher.pid`
+- Starts PocketPaw as a subprocess: `{venv}/bin/python -m pocketpaw --port {port}`
+- Writes PID to `~/.pocketpaw/launcher.pid`
 - Health check via HTTP GET to `http://127.0.0.1:{port}/`
 - Graceful shutdown: SIGTERM → wait → SIGKILL
 - Auto-finds a free port if the default (8888) is occupied
@@ -189,14 +192,14 @@ Triggered on:
 
 ## File locations
 
-| Path | Purpose |
-|------|---------|
-| `~/.pocketclaw/venv/` | Virtual environment with pocketpaw installed |
-| `~/.pocketclaw/config.json` | PocketPaw configuration |
-| `~/.pocketclaw/launcher.pid` | Server process PID |
-| `~/.pocketclaw/logs/launcher.log` | Launcher log file |
-| `~/.pocketclaw/.dev-mode` | Dev mode marker (present when `--dev`/`--branch`/`--local` was used) |
-| `~/.pocketclaw/python/` | Embedded Python (Windows only) |
+| Path                             | Purpose                                                              |
+| -------------------------------- | -------------------------------------------------------------------- |
+| `~/.pocketpaw/venv/`             | Virtual environment with pocketpaw installed                         |
+| `~/.pocketpaw/config.json`       | PocketPaw configuration                                              |
+| `~/.pocketpaw/launcher.pid`      | Server process PID                                                   |
+| `~/.pocketpaw/logs/launcher.log` | Launcher log file                                                    |
+| `~/.pocketpaw/.dev-mode`         | Dev mode marker (present when `--dev`/`--branch`/`--local` was used) |
+| `~/.pocketpaw/python/`           | Embedded Python (Windows only)                                       |
 
 ## Tests
 

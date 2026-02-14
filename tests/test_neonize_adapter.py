@@ -31,9 +31,9 @@ sys.modules.setdefault("neonize.aioze.client", mock_aioze_client)
 sys.modules.setdefault("neonize.aioze.events", mock_aioze_events)
 sys.modules.setdefault("neonize.utils", mock_utils)
 
-from pocketclaw.bus.adapters.neonize_adapter import NeonizeAdapter  # noqa: E402
-from pocketclaw.bus.events import Channel, OutboundMessage  # noqa: E402
-from pocketclaw.bus.queue import MessageBus  # noqa: E402
+from pocketpaw.bus.adapters.neonize_adapter import NeonizeAdapter  # noqa: E402
+from pocketpaw.bus.events import Channel, OutboundMessage  # noqa: E402
+from pocketpaw.bus.queue import MessageBus  # noqa: E402
 
 
 @pytest.fixture
@@ -52,10 +52,10 @@ def test_channel_property(adapter):
 
 
 def test_default_db_path():
-    """Default db_path uses ~/.pocketclaw/neonize.sqlite3."""
+    """Default db_path uses ~/.pocketpaw/neonize.sqlite3."""
     a = NeonizeAdapter()
     assert "neonize.sqlite3" in a._db_path
-    assert ".pocketclaw" in a._db_path
+    assert ".pocketpaw" in a._db_path
 
 
 def test_custom_db_path():
