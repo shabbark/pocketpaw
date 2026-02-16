@@ -2265,6 +2265,18 @@ async def websocket_endpoint(
                         settings.ollama_model = data["ollama_model"]
                     if data.get("anthropic_model"):
                         settings.anthropic_model = data.get("anthropic_model")
+                    if data.get("openai_compatible_base_url") is not None:
+                        settings.openai_compatible_base_url = data["openai_compatible_base_url"]
+                    if data.get("openai_compatible_api_key"):
+                        settings.openai_compatible_api_key = data["openai_compatible_api_key"]
+                    if data.get("openai_compatible_model") is not None:
+                        settings.openai_compatible_model = data["openai_compatible_model"]
+                    if "openai_compatible_max_tokens" in data:
+                        val = data["openai_compatible_max_tokens"]
+                        if isinstance(val, (int, float)) and 0 <= val <= 1000000:
+                            settings.openai_compatible_max_tokens = int(val)
+                    if data.get("gemini_model"):
+                        settings.gemini_model = data["gemini_model"]
                     if "bypass_permissions" in data:
                         settings.bypass_permissions = bool(data.get("bypass_permissions"))
                     if data.get("web_search_provider"):
@@ -2362,6 +2374,14 @@ async def websocket_endpoint(
                         await websocket.send_json(
                             {"type": "message", "content": "✅ OpenAI API key saved!"}
                         )
+                    elif provider == "google" and key:
+                        settings.google_api_key = key
+                        settings.llm_provider = "gemini"
+                        settings.save()
+                        agent_loop.reset_router()
+                        await websocket.send_json(
+                            {"type": "message", "content": "✅ Google API key saved!"}
+                        )
                     elif provider == "tavily" and key:
                         settings.tavily_api_key = key
                         settings.save()
@@ -2440,6 +2460,12 @@ async def websocket_endpoint(
                             "ollamaHost": settings.ollama_host,
                             "ollamaModel": settings.ollama_model,
                             "anthropicModel": settings.anthropic_model,
+                            "openaiCompatibleBaseUrl": settings.openai_compatible_base_url,
+                            "openaiCompatibleModel": settings.openai_compatible_model,
+                            "openaiCompatibleMaxTokens": settings.openai_compatible_max_tokens,
+                            "hasOpenaiCompatibleKey": bool(settings.openai_compatible_api_key),
+                            "geminiModel": settings.gemini_model,
+                            "hasGoogleApiKey": bool(settings.google_api_key),
                             "bypassPermissions": settings.bypass_permissions,
                             "hasAnthropicKey": bool(settings.anthropic_api_key),
                             "hasOpenaiKey": bool(settings.openai_api_key),

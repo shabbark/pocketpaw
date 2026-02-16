@@ -66,6 +66,11 @@ function app() {
             ollamaHost: 'http://localhost:11434',
             ollamaModel: 'llama3.2',
             anthropicModel: 'claude-sonnet-4-5-20250929',
+            openaiCompatibleBaseUrl: '',
+            openaiCompatibleApiKey: '',
+            openaiCompatibleModel: '',
+            openaiCompatibleMaxTokens: 0,
+            geminiModel: 'gemini-2.5-flash',
             bypassPermissions: false,
             webSearchProvider: 'tavily',
             urlExtractProvider: 'auto',
@@ -97,6 +102,7 @@ function app() {
         apiKeys: {
             anthropic: '',
             openai: '',
+            google: '',
             tavily: '',
             brave: '',
             parallel: '',
@@ -108,6 +114,8 @@ function app() {
         },
         hasAnthropicKey: false,
         hasOpenaiKey: false,
+        hasOpenaiCompatibleKey: false,
+        hasGoogleApiKey: false,
         hasTavilyKey: false,
         hasBraveKey: false,
         hasParallelKey: false,
@@ -385,6 +393,8 @@ function app() {
             // Data-driven settings sync: map server keys to local settings
             const SETTINGS_MAP = [
                 'agentBackend', 'llmProvider', 'ollamaHost', 'ollamaModel', 'anthropicModel',
+                'openaiCompatibleBaseUrl', 'openaiCompatibleModel', 'openaiCompatibleMaxTokens',
+                'geminiModel',
                 'bypassPermissions', 'webSearchProvider', 'urlExtractProvider',
                 'injectionScanEnabled', 'injectionScanLlm', 'toolProfile',
                 'planMode', 'planModeTools', 'smartRoutingEnabled',
@@ -401,7 +411,8 @@ function app() {
 
             // API key availability flags
             const KEY_FLAGS = {
-                hasAnthropicKey: false, hasOpenaiKey: false,
+                hasAnthropicKey: false, hasOpenaiKey: false, hasOpenaiCompatibleKey: false,
+                hasGoogleApiKey: false,
                 hasTavilyKey: false, hasBraveKey: false,
                 hasParallelKey: false, hasElevenlabsKey: false,
                 hasGoogleOAuthId: false, hasGoogleOAuthSecret: false,
@@ -505,6 +516,7 @@ function app() {
                 'brave': 'hasBraveKey',
                 'parallel': 'hasParallelKey',
                 'elevenlabs': 'hasElevenlabsKey',
+                'google': 'hasGoogleApiKey',
                 'google_oauth_id': 'hasGoogleOAuthId',
                 'google_oauth_secret': 'hasGoogleOAuthSecret',
                 'spotify_client_id': 'hasSpotifyClientId',
