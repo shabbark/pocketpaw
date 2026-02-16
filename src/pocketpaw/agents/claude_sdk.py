@@ -170,6 +170,7 @@ class ClaudeAgentSDK:
         "Grep": "shell",  # search is shell-adjacent
         "WebSearch": "browser",
         "WebFetch": "browser",
+        "Skill": "skill",
     }
 
     def __init__(self, settings: Settings, executor: ExecutorProtocol | None = None):
@@ -739,6 +740,7 @@ class ClaudeAgentSDK:
                 "Grep",
                 "WebSearch",
                 "WebFetch",
+                "Skill",
             ]
             allowed_tools = [
                 t
@@ -763,6 +765,7 @@ class ClaudeAgentSDK:
             options_kwargs = {
                 "system_prompt": final_prompt,
                 "allowed_tools": allowed_tools,
+                "setting_sources": ["user", "project"],
                 "hooks": hooks,
                 "cwd": str(self._cwd),
                 "max_turns": 25,  # Safety net against runaway tool loops
