@@ -4,15 +4,15 @@ This test suite validates the input validation added to the
 plan_existing_project function to prevent silent failures.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 from pocketpaw.deep_work.session import VALID_RESEARCH_DEPTHS, DeepWorkSession
 from pocketpaw.mission_control import (
     FileMissionControlStore,
     MissionControlManager,
 )
-from pocketpaw.deep_work.models import Project, ProjectStatus
 
 
 @pytest.fixture
@@ -147,21 +147,27 @@ class TestUserInputValidation:
     @pytest.mark.asyncio
     async def test_user_input_exactly_5000_chars(self, session):
         """User input of exactly 5000 chars should be accepted."""
-        # This test will fail during planning phase (no LLM configured)
-        # but should pass validation
+        # Mock the planner to avoid requiring real LLM configuration
+        session.planner = MagicMock()
+        session.planner.plan = AsyncMock(return_value=None)
+        # Mock _broadcast_planning_complete to avoid asyncio errors in mock
+        session._broadcast_planning_complete = MagicMock()
+
         exact_input = "a" * 5000
-        
-        # We expect this to fail at the planning stage, NOT at validation
-        # So we check it doesn't raise a "too long" error
+
+        # If validation is correct, this should not raise a ValueError
+        # (It will fail later because our mock planner returns None, but we just check validation)
         try:
             await session.plan_existing_project(
                 session._test_project_id,
                 exact_input,
-                "standard"
+                "standard",
             )
+        except AttributeError:
+             # Expected failure because mock returns None for result
+             pass
         except ValueError as e:
-            # If it fails, it should NOT be because of length
-            assert "too long" not in str(e)
+             pytest.fail(f"Validation failed unexpectedly: {e}")
 
 
 class TestValidInputAcceptance:
@@ -170,32 +176,39 @@ class TestValidInputAcceptance:
     @pytest.mark.asyncio
     async def test_minimal_valid_input(self, session):
         """Minimal valid input should pass validation."""
-        # This will fail at planning (no LLM), but should pass validation
+        # Mock the planner to avoid requiring real LLM configuration
+        session.planner = MagicMock()
+        session.planner.plan = AsyncMock(return_value=None)
+        session._broadcast_planning_complete = MagicMock()
+
+        # If validation is correct, this should not raise a ValueError
         try:
             await session.plan_existing_project(
                 session._test_project_id,
                 "a",  # single character
-                "none"  # no research needed
+                "none",  # no research needed
             )
+        except AttributeError:
+             pass
         except ValueError as e:
-            # Should not fail on validation
-            assert "Invalid research_depth" not in str(e)
-            assert "cannot be empty" not in str(e)
-            assert "too long" not in str(e)
+             pytest.fail(f"Validation failed unexpectedly: {e}")
 
     @pytest.mark.asyncio
     async def test_all_valid_research_depths_pass_validation(self, session):
         """All valid research_depth values should pass validation."""
+        # Mock the planner to avoid requiring real LLM configuration
+        session.planner = MagicMock()
+        session.planner.plan = AsyncMock(return_value=None)
+        session._broadcast_planning_complete = MagicMock()
+
         for depth in VALID_RESEARCH_DEPTHS:
-            # Each should pass validation (may fail at planning stage)
             try:
                 await session.plan_existing_project(
                     session._test_project_id,
                     "Build a simple app",
-                    depth
+                    depth,
                 )
+            except AttributeError:
+                pass
             except ValueError as e:
-                # Should not fail on research_depth validation
-                error_msg = str(e)
-                assert "Invalid research_depth" not in error_msg, \
-                    f"Valid depth '{depth}' was rejected: {error_msg}"
+                pytest.fail(f"Validation failed unexpectedly for depth {depth}: {e}")

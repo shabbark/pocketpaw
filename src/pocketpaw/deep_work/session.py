@@ -184,8 +184,8 @@ class DeepWorkSession:
         )
 
     async def plan_existing_project(
-    self, project_id: str, user_input: str, research_depth: str = "standard"
-) -> Project:
+        self, project_id: str, user_input: str, research_depth: str = "standard"
+    ) -> Project:
         """Plan an existing project by generating tasks and team.
 
         Args:
@@ -237,11 +237,13 @@ class DeepWorkSession:
             project.status = ProjectStatus.FAILED
             project.metadata["error"] = f"Planning failed: {str(e)}"
             await self.manager.update_project(project)
+            self._broadcast_planning_complete(project)
             raise e
 
         # Update project with results
         project.status = ProjectStatus.AWAITING_APPROVAL
         project.metadata["planning_complete"] = True
+        self._broadcast_planning_complete(project)
 
         # Set project title from PRD (first heading or fallback)
         title = _extract_title(result.prd_content) or user_input[:80]
@@ -269,6 +271,7 @@ class DeepWorkSession:
             project.status = ProjectStatus.FAILED
             project.metadata["error"] = f"Invalid plan: {error_msg}"
             await self.manager.update_project(project)
+            self._broadcast_planning_complete(project)
             raise ValueError(f"Plan validation failed: {error_msg}")
 
         # Save agents if any were recommended
@@ -283,6 +286,7 @@ class DeepWorkSession:
                     role=agent_rec.role,
                     description=agent_rec.description or "",
                     specialties=agent_rec.specialties,
+                    backend=agent_rec.backend,
                 )
                 agent_id = agent.id
 
@@ -308,6 +312,7 @@ class DeepWorkSession:
                 estimated_minutes=result.estimated_total_minutes,
             )
 
+        self._broadcast_planning_complete(project)
         return project
 
     async def approve(self, project_id: str) -> Project:

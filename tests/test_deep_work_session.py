@@ -398,7 +398,12 @@ class TestStartEdgeCases:
             human_router=mock_human_router,
         )
 
-        project = await session.start("Cyclic project")
+        with pytest.raises(ValueError, match="Plan validation failed"):
+            await session.start("Cyclic project")
+
+        projects = await manager.list_projects()
+        assert len(projects) == 1
+        project = projects[0]
         assert project.status == ProjectStatus.FAILED
         assert "cycle" in project.metadata.get("error", "").lower()
 
@@ -415,7 +420,12 @@ class TestStartEdgeCases:
             human_router=mock_human_router,
         )
 
-        project = await session.start("Empty project")
+        with pytest.raises(ValueError, match="Plan validation failed"):
+            await session.start("Empty project")
+
+        projects = await manager.list_projects()
+        assert len(projects) == 1
+        project = projects[0]
         assert project.status == ProjectStatus.FAILED
         assert "no tasks" in project.metadata.get("error", "").lower()
 
