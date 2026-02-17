@@ -432,8 +432,7 @@ class TestStartEdgeCases:
             human_router=mock_human_router,
         )
 
-        with pytest.raises(RuntimeError, match="LLM API error"):
-            await session.start("Failing project")
+        project = await session.start("Failing project")
 
         # Verify project is marked FAILED in the store
         projects = await manager.list_projects()
